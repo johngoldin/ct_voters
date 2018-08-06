@@ -1,0 +1,15 @@
+---
+title: "Guilford Voter Map"
+output: html_notebook
+---
+
+Voter lists are processed by guilford_voters.Rmd 
+
+![Town lines for Guilford](Town of Guilford.png)
+
+```{r}
+qmap(location = "Town of Guilford, CT", zoom = 14)
+```
+
+
+

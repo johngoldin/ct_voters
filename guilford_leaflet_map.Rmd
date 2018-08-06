@@ -1,0 +1,25 @@
+---
+title: "Guilford leaflet map"
+output: html_notebook
+---
+
+ 
+
+
+
+
+
+
+
+
+```{r}
+library(leaflet)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addMarkers(lng=guilford_addr$lon, lat=guilford_addr$lat)
+m
+```
+
+
+

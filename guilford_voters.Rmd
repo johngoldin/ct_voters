@@ -1,0 +1,91 @@
+---
+title: "guilford voters"
+output: html_notebook
+---
+
+
+
+```{r}
+library(tidyverse)
+lines <- read_csv("guilford06437.txt", col_names = FALSE) %>%
+  rename(address = X1, town = X2, last_name = X3, first_name = X4, text_dob = X5, party = X6)
+#View(lines)
+```
+
+
+```{r setup_for_call}
+lines2 <- lines %>%
+  mutate(addresses = paste0(address, ", ", town, ", CT"))
+addresses <- data_frame(address = unique(lines2$addresses))
+addresses$id <- seq(1, nrow(addresses))
+set1 <- 1:2000
+set2 <- set1 + 2000
+set3 <- set2 + 2400
+set4 <- c(6401:8608, 4001:4400)
+```
+
+
+
+```{r get_geo}
+
+test1 <- 1:10
+
+```
+
+Get a chunk of addresses
+```{r get_addresses, message = TRUE}
+addr_set1 <- geocode_addresses(addresses$address[set1])
+addr_set1$id <- addresses$id[set1]
+```
+xx <- wrap_geocode("ksdfjsdfaf",23)
+```{r set1, message = FALSE, include = FALSE}
+library(purrr)
+guilford_set1 <- map2_df(addresses$address[set1], addresses$id[set1], wrap_geocode)
+save(guilford_set1, file = "guilford_set1.RData")
+```
+
+```{r set2, include = FALSE}
+guilford_set2 <- map2_df(addresses$address[set2], addresses$id[set2], wrap_geocode)
+save(guilford_set2, file = "guilford_set2.RData")
+```
+
+```{r set3, message = FALSE, include = FALSE}
+guilford_set3 <- map2_df(addresses$address[set3], addresses$id[set3], wrap_geocode)
+save(guilford_set3, file = "guilford_set3.RData")
+```
+
+```{r set4, message = FALSE, include = FALSE}
+guilford_set4 <- map2_df(addresses$address[set4], addresses$id[set4], wrap_geocode)
+save(guilford_set4, file = "guilford_set4.RData")
+table(guilford_set4$rc, useNA = "ifany")
+```
+
+
+```{r bind_rows, include = FALSE}
+guilford_addr <- bind_rows(guilford_set1, guilford_set2, guilford_set3, guilford_set4)
+save(guilford_addr, file = "guilford_addr.RData")
+guilford_addr <- guilford_addr %>% filter(lat > 40, lon < -70)
+guilford_addr %>% filter(rc != "OK") %>% select(id,in_address)
+```
+
+Now let's merge the addresses back into line2
+
+```{r}
+lines3 <- lines2 %>% left_join(guilford_addr, by = c("addresses" = "in_address")) %>%
+  mutate(party2 = case_when(
+    party == "Independent" ~ "Ind or Unaffil",
+    party == "U/i" ~ "Ind or Unaffil",
+    party == "Unaffiliated" ~ "Ind or Unaffil",
+    party == "Green" ~ "Ind or Unaffil",
+    party == "Libertarian" ~ "Ind or Unaffil",
+    TRUE ~ party
+  ))
+```
+
+check for addresses outside of boundaries
+
+```{r}
+out_of_bounds <- guilford_addr %>% filter((lon < guilford_left_bottom_lon) | (lon > guilford_right_top_lon),
+                                          (lat < guilford_left_bottom_lat) | (lat > guilford_right_top_lat))
+```
+
