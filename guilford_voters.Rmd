@@ -21,7 +21,14 @@ addresses$id <- seq(1, nrow(addresses))
 set1 <- 1:2000
 set2 <- set1 + 2000
 set3 <- set2 + 2400
-set4 <- c(6401:8608, 4001:4400)
+set4 <- c(6401:8408, 4001:4400)
+set5 <- c(8409:8608)
+set4a <- set4[1:500]
+set4b <- set4[501:1000]
+set4c <- set4[1001:1500]
+set4d <- set4[1501:2000]
+set4e <- set4[2001:2408]
+
 ```
 
 
@@ -40,26 +47,56 @@ addr_set1$id <- addresses$id[set1]
 xx <- wrap_geocode("ksdfjsdfaf",23)
 ```{r set1, message = FALSE, include = FALSE}
 library(purrr)
-guilford_set1 <- map2_df(addresses$address[set1], addresses$id[set1], wrap_geocode)
+guilford_set1 <- map2_df(addresses$address[set1], addresses$id[set1], wrap_geocode, src = "google")
 save(guilford_set1, file = "guilford_set1.RData")
 ```
 
 ```{r set2, include = FALSE}
-guilford_set2 <- map2_df(addresses$address[set2], addresses$id[set2], wrap_geocode)
-save(guilford_set2, file = "guilford_set2.RData")
+if (geocodeQueryCheck() > nrow(addresses[set2,])) {
+  guilford_set2 <- map2_df(addresses$address[set2], addresses$id[set2], wrap_geocode, src = "google")
+  save(guilford_set2, file = "guilford_set2.RData")
+  xx <- guilford_set2 %>% filter(rc != "OK")
+  guilford_set2_missed <- map2_df(xx$in_address, xx$id, wrap_geocode)
+  save(guilford_set2_missed, file = "guilford_set2_missed.RData")
+}
 ```
 
 ```{r set3, message = FALSE, include = FALSE}
-guilford_set3 <- map2_df(addresses$address[set3], addresses$id[set3], wrap_geocode)
-save(guilford_set3, file = "guilford_set3.RData")
+if (geocodeQueryCheck() > nrow(addresses[set3,])) {
+  guilford_set3 <- map2_df(addresses$address[set3], addresses$id[set3], wrap_geocode, src = "google")
+  save(guilford_set3, file = "guilford_set3.RData")
+}
 ```
 
-```{r set4, message = FALSE, include = FALSE}
-guilford_set4 <- map2_df(addresses$address[set4], addresses$id[set4], wrap_geocode)
-save(guilford_set4, file = "guilford_set4.RData")
-table(guilford_set4$rc, useNA = "ifany")
+```{r set4a, message = FALSE, include = FALSE}
+if (geocodeQueryCheck() > nrow(addresses[set4a,])) {
+  guilford_set4a <- map2_df(addresses$address[set4a], addresses$id[set4a], wrap_geocode)
+  save(guilford_set4a, file = "guilford_set4a.RData")
+  table(guilford_set4a$rc, useNA = "ifany")
+}
 ```
 
+```{r set4d, message = FALSE, include = FALSE}
+if (geocodeQueryCheck() > nrow(addresses[set4d,])) {
+  guilford_set4d <- map2_df(addresses$address[set4d], addresses$id[set4d], wrap_geocode)
+  save(guilford_set4d, file = "guilford_set4d.RData")
+  table(guilford_set4d$rc, useNA = "ifany")
+}
+```
+
+```{r set4c, message = FALSE, include = FALSE}
+if (geocodeQueryCheck() > nrow(addresses[set4c,])) {
+  set4ct <- setdiff(set4c, c(7642))
+  guilford_set4c <- map2_df(addresses$address[set4ct], addresses$id[set4ct], wrap_geocode)
+  save(guilford_set4c, file = "guilford_set4c.RData")
+  table(guilford_set4c$rc, useNA = "ifany")
+}
+```
+
+
+
+if (geocodeQueryCheck() > nrow(addresses[100:110,])) {
+  xx <- map2_df(addresses$address[100:110], addresses$id[100:110], wrap_geocode, src = "google")
 
 ```{r bind_rows, include = FALSE}
 guilford_addr <- bind_rows(guilford_set1, guilford_set2, guilford_set3, guilford_set4)
@@ -87,5 +124,13 @@ check for addresses outside of boundaries
 ```{r}
 out_of_bounds <- guilford_addr %>% filter((lon < guilford_left_bottom_lon) | (lon > guilford_right_top_lon),
                                           (lat < guilford_left_bottom_lat) | (lat > guilford_right_top_lat))
+```
+
+
+
+```{r}
+xx <- guilford_set1 %>% select(id, lat1 = lat, lon1 = lon, rc1 = rc) %>%
+  left_join(guilford_addr %>% select(id, latdsk = lat, londsk = lon, rcdsk = rc, in_address))
+yy <- xx %>% mutate(bad_lon = near(lon1, londsk), bad_lat = near(lat1, latdsk))
 ```
 

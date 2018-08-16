@@ -17,7 +17,8 @@ library(leaflet)
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
-  addMarkers(lng=guilford_addr$lon, lat=guilford_addr$lat)
+  addMarkers(lng=guilford_addr$lon, lat=guilford_addr$lat,
+             popup = guilford_addr$in_address)
 m
 ```
 

@@ -4,11 +4,11 @@
 #test:  geocode("248 Sam Hill Rd, Guilford, CT", output = "latlona", source = "dsk")
 #test:  xx <- wrap_geocode("ksdfjsdfaf",23)
 
-wrap_geocode <- function(an_address, an_id) {
+wrap_geocode_single <- function(an_address, an_id, src2 = "dsk") {
   result <- data_frame(in_address = an_address, id = an_id, lat = NA_real_, lon = NA_real_, out_address = "", rc = "")
   try_result = tryCatch({
     geo_rc <- 0
-    geo_result <- geocode(an_address, output = "latlona", source = "dsk", messaging = FALSE)
+    geo_result <- geocode(an_address, output = "latlona", source = src2, messaging = FALSE)
     if (ncol(geo_result) <= 2) {
       result$rc[1] <- paste(nrow(geo_result), "rows", "and", ncol(geo_result), "columns returned from geocode.")
       return(result)
@@ -30,6 +30,20 @@ wrap_geocode <- function(an_address, an_id) {
     return(result)
   })
   return(try_result)
+}
+
+# If at first you don't succeed, try again
+# I'm hoping this introduces enough of a delay to take care of google problem
+wrap_geocode <- function(an_address, an_id, src = "dsk") {
+  if (src == "google") if (as.numeric(geocodeQueryCheck()) == 0) return(NULL)
+  xx <- wrap_geocode_single(an_address, an_id, src2 = src)
+  if (src == "google") Sys.sleep(0.2)
+  if (xx$rc[1] != "OK") {
+    Sys.sleep(0.2)
+    if (src == "google") if (as.numeric(geocodeQueryCheck()) == 0) return(NULL)
+    xx <- wrap_geocode(an_address, an_id, src = src)
+  }
+  return(xx)
 }
 
 #test: result <- geocode_addresses(addresses$address[1:15])
