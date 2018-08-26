@@ -14,9 +14,9 @@ lines <- read_csv("guilford06437.txt", col_names = FALSE) %>%
 
 
 ```{r setup_for_call}
-lines2 <- lines %>%
+lines <- lines %>%
   mutate(addresses = paste0(address, ", ", town, ", CT"))
-addresses <- data_frame(address = unique(lines2$addresses))
+addresses <- data_frame(address = unique(lines$addresses))
 addresses$id <- seq(1, nrow(addresses))
 set1 <- 1:2000
 set2 <- set1 + 2000
@@ -33,11 +33,21 @@ set4e <- set4[2001:2408]
 
 
 
-```{r get_geo}
-
-test1 <- 1:10
+```{r basic_stats}
+lines %>% group_by(party) %>% tally() %>% arrange(desc(n)) %>% 
+  mutate(pct =paste0(round(100 * n / nrow(lines), 0),'%')) %>%
+  bind_rows(lines  %>% tally() %>% mutate(party = "Total", pct = "")) %>%
+kable(col.names = c("Party", "n", "%"), format = "html", format.args = list(big.mark = ","))
 
 ```
+
+```{r find_households}
+hh <- lines %>% group_by(address) %>% 
+  tally()
+```
+
+
+
 
 Get a chunk of addresses
 ```{r get_addresses, message = TRUE}
@@ -76,11 +86,11 @@ if (geocodeQueryCheck() > nrow(addresses[set4a,])) {
 }
 ```
 
-```{r set4d, message = FALSE, include = FALSE}
-if (geocodeQueryCheck() > nrow(addresses[set4d,])) {
-  guilford_set4d <- map2_df(addresses$address[set4d], addresses$id[set4d], wrap_geocode)
-  save(guilford_set4d, file = "guilford_set4d.RData")
-  table(guilford_set4d$rc, useNA = "ifany")
+```{r set4e, message = FALSE, include = FALSE}
+if (geocodeQueryCheck() > nrow(addresses[set4e,])) {
+  guilford_set4e <- map2_df(addresses$address[set4e], addresses$id[set4e], wrap_geocode)
+  save(guilford_set4e, file = "guilford_set4e.RData")
+  table(guilford_set4e$rc, useNA = "ifany")
 }
 ```
 
@@ -132,5 +142,89 @@ out_of_bounds <- guilford_addr %>% filter((lon < guilford_left_bottom_lon) | (lo
 xx <- guilford_set1 %>% select(id, lat1 = lat, lon1 = lon, rc1 = rc) %>%
   left_join(guilford_addr %>% select(id, latdsk = lat, londsk = lon, rcdsk = rc, in_address))
 yy <- xx %>% mutate(bad_lon = near(lon1, londsk), bad_lat = near(lat1, latdsk))
+```
+
+let's combimne all the google goetgge stuff
+
+```{r}
+load("guilford_set1.RData")
+load("guilford_set2.RData")
+load("guilford_set3.RData")
+load("guilford_set4a.RData")
+load("guilford_set4b.RData")
+load("guilford_set4c.RData")
+load("guilford_set4d.RData")
+load("guilford_set4e.RData")
+
+google_addr <- bind_rows(guilford_set1, guilford_set2, guilford_set3,
+                         guilford_set4a, guilford_set4b, guilford_set4c, 
+                         guilford_set4d, guilford_set4e)
+missed <- addresses %>% filter(!(id %in% google_addr$id))
+
+load("guilford_set5.RData")
+
+google_addr <- bind_rows(google_addr, 
+                         guilford_set5)
+missed2 <- addresses %>% filter(!(id %in% google_addr$id))
+
+google_addr <- bind_rows(google_addr, guilford_set6)
+save(google_addr, file = "google_addr.RData")
+```
+
+```{r set5, message = FALSE, include = FALSE}
+if (geocodeQueryCheck() > nrow(addresses[missed$id[251:544],])) {
+  guilford_set5 <- map2_df(addresses$address[missed$id[251:544]], addresses$id[missed$id[251:544]], wrap_geocode)
+  save(guilford_set5, file = "guilford_set5.RData")
+  table(guilford_set5$rc, useNA = "ifany")
+}
+```
+
+```{r set6, message = FALSE, include = FALSE}
+library(ggmap)
+missed2 <- missed2 %>% filter(address != "800 Village Walk Unit #175, Guilford, CT")
+if (geocodeQueryCheck() > nrow(addresses[missed2$id,])) {
+  guilford_set6 <- map2_df(addresses$address[missed2$id], addresses$id[missed2$id], wrap_geocode)
+  save(guilford_set6, file = "guilford_set6.RData")
+  table(guilford_set6$rc, useNA = "ifany")
+}
+```
+
+
+Need to convert date to age
+month_text <- c(" January ", " February ", " March ", " April ", 
+  " May ", " June ", " July ", " August ", 
+  " September", " October ", " November " " December ")
+day_text <- c("-01-", "-02-", "-03-", "-04-", "-05-", "-06-", 
+  "-07-", "-08-", "-09-", "-10-", "-11-", "-12-")
+xx <- mutate(str_replace_all(text_dob, "born: ", "") %>%
+  str_replace(" January ",  "-01-") %>%
+  str_replace(" February ", "-02-") %>%
+  str_replace(" March ",    "-03-") %>%
+  str_replace(" April ",    "-04-") %>%
+  str_replace(" May ",      "-05-") %>%
+  str_replace(" June ",     "-06-") %>%
+  str_replace(" July ",     "-07-") %>%
+  str_replace(" August ",   "-08-") %>%
+  str_replace(" September", "-09-") %>%
+  str_replace(" October ",  "-10-") %>%
+  str_replace(" November ", "-11-") %>%
+  str_replace(" December ", "-12-") %>%
+  dmy() %>%
+  age(ymd("2017-11-03"))
+lines$text_dob[which(is.na(xx))]
+
+```{r}
+# create named vector to use with str_replace that will find name and replace with value.
+fnd <- c("born: ", " January ", " February ", " March ", " April ", 
+                                 " May ", " June ", " July ", " August ", 
+                                 " September ", " October ", " November ", " December ")
+repl <- c("", "-01-", "-02-", "-03-", "-04-", 
+                                 "-05-", "-06-", "-07-", "-08-", 
+                                 "-09-", "-10-", "-11-", "-12-")
+names(repl) <- fnd
+xx <- lines %>% 
+  mutate(age = compute_age(dmy(str_replace_all(text_dob, repl)), ymd("2017-11-03")),
+         age = ifelse(age > 102, NA_real_, age))  
+                               
 ```
 
